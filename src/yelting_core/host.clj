@@ -1,7 +1,10 @@
 (ns yelting-core.host
   (:import (java.io FileWriter FileReader PushbackReader))
   (:use [yelting-achlib.parser]
-        [clj-time.core :exclude 'extend]))
+        [clj-time.core :exclude 'extend]
+	[fleetdb.client]))
+
+(def client (connect))
 
 (def customers (ref {}))
 (def accounts (ref {}))
@@ -37,10 +40,9 @@
   (dosync
     (ref-set customers (deserialize "customers.data"))))
 
-(defn- add-memo [accounts-deref account amount description]
-  (-> accounts-deref
-    (update-in [account :available-balance] + amount)
-    (update-in [account :memos] conj {:amount amount :description description :sent-at (now)})))
+(defn- add-memo [account-number amount description]
+  [[:update :accounts {:available-balance (+ (old_balance) amount)} {}]
+   [:update :memos {:account-number account-number :amount amount :description description :sent-at (now)} {}]])
 
 (defn post-memos
   ([]
