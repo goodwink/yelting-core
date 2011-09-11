@@ -63,7 +63,7 @@
 	 [:insert :posted-transactions
 	  (map (fn[memo] (assoc memo :posted-at (to-string (now)))) memos)]
 	 [:delete :memos
-	  {:where ["=" :account-id account-id]}]]]])))
+	  {:where ["=" :account-id (:id account)]}]]]])))
 
 (defn post-ach [records]
   )
