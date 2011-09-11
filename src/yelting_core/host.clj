@@ -5,7 +5,7 @@
 	[clj-time.coerce :only (to-string from-string)]
 	[fleetdb.client]))
 
-(def client (connect))
+(def client (connect {:keywordize true}))
 
 (defn guid [] (.toString (java.util.UUID/randomUUID)))
 
@@ -25,10 +25,10 @@
 
 (defn available-balance
   ([account memos]
-     (reduce + (:ledger-balance account) (map :amount memos)))
+     (reduce + (BigDecimal. (:ledger-balance account)) (map #(BigDecimal. (:amount %1)) memos)))
   ([account-id]
      (let [[[account] memos] (account-and-memos account-id)]
-       (reduce + (:ledger-balance account) memos))))
+       (available-balance account memos))))
 
 (defn current-memos [account-id]
   (client [:select :memos {:where ["=" :account-id account-id]}]))
@@ -77,8 +77,8 @@
   (> (client [:count :memos {:where ["=" :account-id account-id]}]) 0))
 
 (defn ledger-balance [account-id]
-  (:ledger-balance
-   (first (client [:select :accounts (for-account account-id)]))))
+  (BigDecimal. (:ledger-balance
+		(first (client [:select :accounts (for-account account-id)])))))
 
 (defn transaction-history [account-id]
   (client [:select :posted-transactions {:where ["=" :account-id account-id]}]))
@@ -99,10 +99,10 @@
 		{:id customer-id :first-name first-name :last-name last-name
 		 :legal-name legal-name :tax-id tax-id :is-business? is-business?}])))
 
-(defn create-account [customer-id account-id account-product]
+(defn create-account [customer-id account-id account-product daily-interest-rate]
   (= [1 1] (client [:multi-write
 		    [[:insert :accounts
-		      {:id account-id :account-product account-product :ledger-balance 0}]
+		      {:id account-id :account-product account-product :ledger-balance 0M :daily-interest-rate daily-interest-rate}]
 		     [:insert :customer-accounts
 		      {:customer-id customer-id :account-id account-id :id (guid)}]]])))
 
@@ -126,3 +126,33 @@
 
 (defn remove-account-product [account-product]
   (client [:delete :account-products {:where ["=" :id account-product]}]))
+
+(defn accrue-interest
+  ([]
+     (loop [accounts (client [:select :accounts])]
+       (cond
+	(empty? accounts) true
+	:else
+	(let [result (accrue-interest
+		      (first accounts))]
+	  (cond
+	   (first result) (recur (rest accounts))
+	   :else (recur
+		  (conj
+		   (rest accounts)
+		   (first
+		    (client [:select :accounts
+			     (for-account (:id (first accounts)))])))))))))
+  ([account]
+     (client
+      [:checked-write
+       [:select :accounts {:where ["=" :id (:id account)]
+			   :only :ledger-balance}]
+       [(:ledger-balance account)]
+       [:update :accounts
+	{:accrued-interest (*
+			    (BigDecimal. (:daily-interest-rate account))
+			    (BigDecimal. (:ledger-balance account)))}
+	(for-account (:id account))]])))
+
+(defn post-interest [])

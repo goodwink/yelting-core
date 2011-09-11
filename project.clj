@@ -4,5 +4,5 @@
 		 [clj-time "0.3.0"]
 		 [com.mefesto/wabbitmq "0.1.4"]
 		 [org.clojure/data.json "0.1.1"]
-		 [goodwink/fleetdb-client "0.2.3"]
+		 [goodwink/fleetdb-client "0.3.0"]
 		 [yelting-achlib "1.0-SNAPSHOT"]])

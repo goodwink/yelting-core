@@ -20,9 +20,9 @@
   (is (= true (create-customer "test123" "test" "bob" "test bob" "123456789" false))))
 
 (defn test-add-accounts []
-  (is (= true (create-account "test123" "99901" "FCK")))
-  (is (= true (create-account "test123" "99902" "MMA")))
-  (is (= true (create-account "test123" "99903" "30F"))))
+  (is (= true (create-account "test123" "99901" "FCK" 0.0M)))
+  (is (= true (create-account "test123" "99902" "MMA" 0.000015M)))
+  (is (= true (create-account "test123" "99903" "30F" 0.000164M))))
 
 (defn test-is-debit-account []
   (is (= false (is-debit-account? "FCK")))
@@ -30,9 +30,9 @@
   (is (= true (is-debit-account? "30F"))))
 
 (defn test-get-account []
-  (is (= {:available-balance 0 :has-memo? false :id "99901" :account-product "FCK" :ledger-balance 0}
+  (is (= {:available-balance 0 :has-memo? false :id "99901" :account-product "FCK" :ledger-balance 0 :daily-interest-rate 0.0M}
 	 (account-details "99901")))
-  (is (= {:available-balance 0 :has-memo? false :id "99902" :account-product "MMA" :ledger-balance 0}
+  (is (= {:available-balance 0 :has-memo? false :id "99902" :account-product "MMA" :ledger-balance 0 :daily-interest-rate 0.000015M}
 	 (account-details "99902"))))
 
 (defn test-get-customer []
@@ -40,13 +40,13 @@
 	 (customer-details "test123"))))
 
 (defn test-transfer []
-  (is (= true (transfer "99902" "99901" 12345 "Test transfer"))))
+  (is (= true (transfer "99902" "99901" 123.45M "Test transfer"))))
 
 (defn test-get-memos []
   (is (= true (has-memo? "99901")))
   (is (= true (has-memo? "99902")))
-  (is (= [{:account-id "99901" :amount 12345 :description "Test transfer"}] (map #(dissoc %1 :sent-at :id) (current-memos "99901"))))
-  (is (= [{:account-id "99902" :amount -12345 :description "Test transfer"}] (map #(dissoc %1 :sent-at :id) (current-memos "99902")))))
+  (is (= [{:account-id "99901" :amount 123.45M :description "Test transfer"}] (map #(dissoc %1 :sent-at :id) (current-memos "99901"))))
+  (is (= [{:account-id "99902" :amount -123.45M :description "Test transfer"}] (map #(dissoc %1 :sent-at :id) (current-memos "99902")))))
 
 (defn test-post-memos []
   (is (= true (post-memos)))
@@ -57,8 +57,8 @@
   (is (= (- (ledger-balance "99902")) (ledger-balance "99901"))))
 
 (defn test-get-history []
-  (is (= [{:account-id "99901" :amount 12345 :description "Test transfer"}] (map #(dissoc %1 :sent-at :posted-at :id) (transaction-history "99901"))))
-  (is (= [{:account-id "99902" :amount -12345 :description "Test transfer"}] (map #(dissoc %1 :sent-at :posted-at :id) (transaction-history "99902")))))
+  (is (= [{:account-id "99901" :amount 123.45M :description "Test transfer"}] (map #(dissoc %1 :sent-at :posted-at :id) (transaction-history "99901"))))
+  (is (= [{:account-id "99902" :amount -123.45M :description "Test transfer"}] (map #(dissoc %1 :sent-at :posted-at :id) (transaction-history "99902")))))
 
 (deftest test-host
   (do
