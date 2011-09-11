@@ -7,10 +7,10 @@
   (let [fields (read-json message)
 	type (.toString (:message-type headers))]
     (case type
-	  "account-inquiry" (account-details (:from-account fields))
-	  "transfer" (transfer (:from-account fields) (:to-account fields) (:amount fields) (:description fields))
-	  "memo-inquiry" (current-memos (:from-account fields))
-	  "history-inquiry" (transaction-history (:from-account fields))
+	  "account-inquiry" (account-details (:from-account-id fields))
+	  "transfer" (transfer (:from-account-id fields) (:to-account-id fields) (:amount fields) (:description fields))
+	  "memo-inquiry" (current-memos (:from-account-id fields))
+	  "history-inquiry" (transaction-history (:from-account-id fields))
 	  "customer-inquiry" (customer-details (:customer-id fields))
 	  {:error "Message type is not supported"})))
 
