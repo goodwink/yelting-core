@@ -99,10 +99,10 @@
 		{:id customer-id :first-name first-name :last-name last-name
 		 :legal-name legal-name :tax-id tax-id :is-business? is-business?}])))
 
-(defn create-account [customer-id account-id account-type]
+(defn create-account [customer-id account-id account-product]
   (= [1 1] (client [:multi-write
 		    [[:insert :accounts
-		      {:id account-id :account-type account-type :ledger-balance 0}]
+		      {:id account-id :account-product account-product :ledger-balance 0}]
 		     [:insert :customer-accounts
 		      {:customer-id customer-id :account-id account-id :id (guid)}]]])))
 
@@ -117,3 +117,12 @@
 	    [:delete :memos {:where ["=" :account-id account-id]}]
 	    [:delete :posted-transactions {:where ["=" :account-id account-id]}]
 	    [:delete :accounts (for-account account-id)]]]))
+
+(defn is-debit-account? [account-product]
+  (= "DB" (:type (first (client [:select :account-products {:where ["=" :id account-product]}])))))
+
+(defn create-account-product [account-product-name account-product account-subtype account-type]
+  (= 1 (client [:insert :account-products {:id account-product :name account-product-name :type account-type :subtype account-subtype}])))
+
+(defn remove-account-product [account-product]
+  (client [:delete :account-products {:where ["=" :id account-product]}]))

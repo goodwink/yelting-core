@@ -5,23 +5,38 @@
 (defn test-setup []
   (remove-customer "test123")
   (remove-account "99901")
-  (remove-account "99902"))
+  (remove-account "99902")
+  (remove-account "99903")
+  (remove-account-product "FCK")
+  (remove-account-product "MMA")
+  (remove-account-product "30F"))
+
+(defn test-add-account-products []
+  (is (= true (create-account-product "Free Checking" "FCK" "DDA" "CR")))
+  (is (= true (create-account-product "Money Market Savings" "MMA" "SAV" "CR")))
+  (is (= true (create-account-product "30-year Fixed Mortgage" "30F" "MTG" "DB"))))
 
 (defn test-add-customer []
   (is (= true (create-customer "test123" "test" "bob" "test bob" "123456789" false))))
 
 (defn test-add-accounts []
-  (is (= true (create-account "test123" "99901" "DDA")))
-  (is (= true (create-account "test123" "99902" "SAV"))))
+  (is (= true (create-account "test123" "99901" "FCK")))
+  (is (= true (create-account "test123" "99902" "MMA")))
+  (is (= true (create-account "test123" "99903" "30F"))))
+
+(defn test-is-debit-account []
+  (is (= false (is-debit-account? "FCK")))
+  (is (= false (is-debit-account? "MMA")))
+  (is (= true (is-debit-account? "30F"))))
 
 (defn test-get-account []
-  (is (= {:available-balance 0 :has-memo? false :id "99901" :account-type "DDA" :ledger-balance 0}
+  (is (= {:available-balance 0 :has-memo? false :id "99901" :account-product "FCK" :ledger-balance 0}
 	 (account-details "99901")))
-  (is (= {:available-balance 0 :has-memo? false :id "99902" :account-type "SAV" :ledger-balance 0}
+  (is (= {:available-balance 0 :has-memo? false :id "99902" :account-product "MMA" :ledger-balance 0}
 	 (account-details "99902"))))
 
 (defn test-get-customer []
-  (is (= {:accounts ["99902" "99901"] :id "test123" :first-name "test" :last-name "bob" :legal-name "test bob" :tax-id "123456789" :is-business? false}
+  (is (= {:accounts ["99903" "99902" "99901"] :id "test123" :first-name "test" :last-name "bob" :legal-name "test bob" :tax-id "123456789" :is-business? false}
 	 (customer-details "test123"))))
 
 (defn test-transfer []
@@ -48,8 +63,10 @@
 (deftest test-host
   (do
     (test-setup)
+    (test-add-account-products)
     (test-add-customer)
     (test-add-accounts)
+    (test-is-debit-account)
     (test-get-account)
     (test-get-customer)
     (test-transfer)
