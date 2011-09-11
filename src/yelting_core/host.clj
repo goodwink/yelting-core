@@ -69,12 +69,12 @@
   )
 
 (defn transfer [from-account-id to-account-id amount description]
-  (client [:multi-write 
-	   [(add-memo from-account-id (- amount) description)
-	    (add-memo to-account-id amount description)]]))
+  (= [1 1] (client [:multi-write 
+		    [(add-memo from-account-id (- amount) description)
+		     (add-memo to-account-id amount description)]])))
 
 (defn has-memo? [account-id]
-  (> 0 (client [:count :memos {:where ["=" :account-id account-id]}])))
+  (> (client [:count :memos {:where ["=" :account-id account-id]}]) 0))
 
 (defn ledger-balance [account-id]
   (:ledger-balance
@@ -92,16 +92,28 @@
 (defn customer-details [customer-id]
   (let [customer (first (client [:select :customers (for-customer customer-id)]))
 	accounts (client [:select :customer-accounts {:where ["=" :customer-id customer-id]}])]
-    (assoc customer :accounts accounts)))
+    (assoc customer :accounts (vec (map :account-id accounts)))))
 
 (defn create-customer [customer-id first-name last-name legal-name tax-id is-business?]
-  (client [:insert :customers
-	   {:id customer-id :first-name first-name :last-name last-name
-	    :legal-name legal-name :tax-id tax-id :is-business? is-business?}]))
+  (= 1 (client [:insert :customers
+		{:id customer-id :first-name first-name :last-name last-name
+		 :legal-name legal-name :tax-id tax-id :is-business? is-business?}])))
 
 (defn create-account [customer-id account-id account-type]
+  (= [1 1] (client [:multi-write
+		    [[:insert :accounts
+		      {:id account-id :account-type account-type :ledger-balance 0}]
+		     [:insert :customer-accounts
+		      {:customer-id customer-id :account-id account-id :id (guid)}]]])))
+
+(defn remove-customer [customer-id]
   (client [:multi-write
-	   [[:insert :accounts
-	     {:id account-id :account-type account-type :ledger-balance 0}]
-	    [:insert :customer-accounts
-	     {:customer-id customer-id :account-id account-id :id (guid)}]]]))
+	   [[:delete :customer-accounts {:where ["=" :customer-id customer-id]}]
+	    [:delete :customers (for-customer customer-id)]]]))
+
+(defn remove-account [account-id]
+  (client [:multi-write
+	   [[:delete :customer-accounts {:where ["=" :account-id account-id]}]
+	    [:delete :memos {:where ["=" :account-id account-id]}]
+	    [:delete :posted-transactions {:where ["=" :account-id account-id]}]
+	    [:delete :accounts (for-account account-id)]]]))
