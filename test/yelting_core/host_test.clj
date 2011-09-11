@@ -60,6 +60,27 @@
   (is (= [{:account-id "99901" :amount 123.45M :description "Test transfer"}] (map #(dissoc %1 :sent-at :posted-at :id) (transaction-history "99901"))))
   (is (= [{:account-id "99902" :amount -123.45M :description "Test transfer"}] (map #(dissoc %1 :sent-at :posted-at :id) (transaction-history "99902")))))
 
+(defn test-accrued-interest []
+  )
+
+(defn test-post-interest []
+  )
+
+(defn test-post-ach []
+  )
+
+(defn test-get-image []
+  )
+
+(defn test-tran-codes []
+  )
+
+(defn test-get-statement []
+  )
+
+(defn test-post-fees []
+  )
+
 (deftest test-host
   (do
     (test-setup)
@@ -72,4 +93,11 @@
     (test-transfer)
     (test-get-memos)
     (test-post-memos)
-    (test-get-history)))
+    (test-get-history)
+    (test-accrued-interest)
+    (test-post-interest)
+    (test-post-ach)
+    (test-get-image)
+    (test-tran-codes)
+    (test-get-statement)
+    (test-post-fees)))

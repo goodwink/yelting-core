@@ -66,7 +66,7 @@
 	  {:where ["=" :account-id (:id account)]}]]]])))
 
 (defn post-ach [records]
-  )
+  ())
 
 (defn transfer [from-account-id to-account-id amount description]
   (= [1 1] (client [:multi-write 
@@ -147,12 +147,50 @@
      (client
       [:checked-write
        [:select :accounts {:where ["=" :id (:id account)]
-			   :only :ledger-balance}]
-       [(:ledger-balance account)]
+			   :only [:ledger-balance :accrued-interest]}]
+       [[(:ledger-balance account)
+	 (:accrued-interest account)]]
        [:update :accounts
-	{:accrued-interest (*
-			    (BigDecimal. (:daily-interest-rate account))
-			    (BigDecimal. (:ledger-balance account)))}
+	{:accrued-interest (+ (BigDecimal. (or (:accrued-interest account) 0))
+			      (*
+			       (BigDecimal. (or (:daily-interest-rate account) 0))
+			       (BigDecimal. (:ledger-balance account))))}
 	(for-account (:id account))]])))
 
-(defn post-interest [])
+(defn- postable-interest [account]
+  (let [accrued (BigDecimal. (or (:accrued-interest account) 0))
+	remaining (mod accrued 0.01M)]
+    [(- accrued remaining) remaining]))
+
+(defn post-interest
+  ([]
+     (loop [accounts (client [:select :accounts])]
+       (cond
+	(empty? accounts) true
+	:else
+	(let [result (post-interest
+		      (first accounts))]
+	  (cond
+	   (first result) (recur (rest accounts))
+	   :else (recur
+		  (conj
+		   (rest accounts)
+		   (first
+		    (client [:select :accounts
+			     (for-account (:id (first accounts)))])))))))))
+  ([account]
+     (let [[postable remaining] (postable-interest account)
+	   description (str "Interest " (:id account))]
+       (cond
+	(> (.abs postable) 0.0M)
+	(client
+	 [:checked-write
+	  [:select :accounts {:where ["=" :id (:id account)]
+			      :only [:ledger-balance :accrued-interest]}]
+	  [[(:ledger-balance account)
+	    (:accrued-interest account)]]
+	  [:multi-write
+	   [(add-memo "10001" (- postable) description)
+	    (add-memo (:id account) postable description)
+	    [:update :accounts {:accrued-interest remaining} (for-account (:id account))]]]])
+	:else [true]))))
