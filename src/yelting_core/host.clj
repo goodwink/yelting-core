@@ -65,8 +65,37 @@
 	 [:delete :memos
 	  {:where ["=" :account-id (:id account)]}]]]])))
 
+(defn- commit-ach-memos [memos]
+  (= (count memos)
+     (reduce + (client ([:multi-write
+			 memos])))))
+
+(defn- description-from-addenda [addenda]
+  (cond
+   (nil? addenda) ""
+   (= "05" (:addenda-type addenda)) (str " - " (:payment-data addenda))))
+
+(defn- description-from-ach [detail header]
+  (str (:name header) " - " (:entry-description header) (description-from-addenda (:addenda detail))))
+
+(defn- process-detail [detail header]
+  (add-memo (:account-number detail) (/ (BigDecimal. (:amount detail) 10.0M) (description-from-ach detail header))))
+
+(defn- process-batch [batch]
+  (let [{header :header details :details control :control} batch]
+    (loop [remaining details
+	   memos []]
+      (cond
+       (empty? remaining) memos
+       :else (recur (rest remaining) (conj memos (process-detail (first remaining) header)))))))
+
 (defn post-ach [records]
-  ())
+  (let [[{header :header batches :batches control :control}] (parse-file records)]
+    (loop [remaining-batches batches
+	   memos []]
+      (cond
+       (empty? remaining-batches) (commit-ach-memos memos)
+       :else (recur (rest batches) (into memos (process-batch (first batches))))))))
 
 (defn transfer [from-account-id to-account-id amount description]
   (= [1 1] (client [:multi-write 
