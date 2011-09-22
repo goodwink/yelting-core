@@ -70,7 +70,9 @@
 
 (defn test-post-interest []
   (is (= true (post-interest)))
-  (is (= (rationalize -123.50M) (available-balance "99902"))))
+  (is (= (rationalize -123.50M) (available-balance "99902")))
+  (is (= true (post-memos)))
+  (is (= (rationalize -123.50M) (ledger-balance "99902"))))
 
 (defn test-post-ach []
   )

@@ -5,15 +5,27 @@
 	[clj-time.coerce :only (to-string from-string)]
 	[fleetdb.client]))
 
+;=======================================
+;==========Utility/Setup================
+;=======================================
+
 (def client (connect {:keywordize true}))
 
 (defn guid [] (.toString (java.util.UUID/randomUUID)))
+
+;=======================================
+;=========Query Convenience=============
+;=======================================
 
 (defn- for-account [account-id]
   {:where ["=" :id account-id]})
 
 (defn- for-customer [customer-id]
   {:where ["=" :id customer-id]})
+
+;=======================================
+;===============Memos===================
+;=======================================
 
 (defn- add-memo [account-id amount description]
   [:insert :memos {:id (guid) :account-id account-id :amount amount :description description :sent-at (to-string (now))}])
@@ -65,6 +77,10 @@
 	 [:delete :memos
 	  {:where ["=" :account-id (:id account)]}]]]])))
 
+;=======================================
+;============ACH Posting================
+;=======================================
+
 (defn- commit-ach-memos [memos]
   (= (count memos)
      (reduce + (client ([:multi-write
@@ -104,6 +120,10 @@
 		    [(add-memo from-account-id (- amount) description)
 		     (add-memo to-account-id amount description)]])))
 
+;=======================================
+;============Convenience================
+;=======================================
+
 (defn has-memo? [account-id]
   (> (client [:count :memos {:where ["=" :account-id account-id]}]) 0))
 
@@ -118,6 +138,10 @@
 (defn transaction-history [account-id]
   (client [:select :posted-transactions {:where ["=" :account-id account-id]}]))
 
+;=======================================
+;=============Inquiries=================
+;=======================================
+
 (defn account-details [account-id]
   (let [[[account] memos] (account-and-memos account-id)]
     (merge account
@@ -128,6 +152,10 @@
   (let [customer (first (client [:select :customers (for-customer customer-id)]))
 	accounts (client [:select :customer-accounts {:where ["=" :customer-id customer-id]}])]
     (assoc customer :accounts (vec (map :account-id accounts)))))
+
+;=======================================
+;============Create/Remove==============
+;=======================================
 
 (defn create-customer [customer-id first-name last-name legal-name tax-id is-business?]
   (= 1 (client [:insert :customers
@@ -153,6 +181,10 @@
 	    [:delete :posted-transactions {:where ["=" :account-id account-id]}]
 	    [:delete :accounts (for-account account-id)]]]))
 
+;=======================================
+;============Account Type===============
+;=======================================
+
 (defn is-debit-account? [account-product]
   (= "DB" (:type (first (client [:select :account-products {:where ["=" :id account-product]}])))))
 
@@ -161,6 +193,10 @@
 
 (defn remove-account-product [account-product]
   (client [:delete :account-products {:where ["=" :id account-product]}]))
+
+;=======================================
+;==============Interest=================
+;=======================================
 
 (defn accrue-interest
   ([]
