@@ -61,10 +61,16 @@
   (is (= [{:account-id "99902" :amount -123.45M :description "Test transfer"}] (map #(dissoc %1 :sent-at :posted-at :id) (transaction-history "99902")))))
 
 (defn test-accrued-interest []
-  )
+  (is (= true (accrue-interest)))
+  (is (= (rationalize -0.00185175M) (accrued-interest "99902")))
+  (is (= true (accrue-interest)))
+  (is (= (rationalize -0.0037035M) (accrued-interest "99902")))
+  (dotimes [x 28] (accrue-interest))
+  (is (= (rationalize -0.0555525M) (accrued-interest "99902"))))
 
 (defn test-post-interest []
-  )
+  (is (= true (post-interest)))
+  (is (= (rationalize -123.50M) (available-balance "99902"))))
 
 (defn test-post-ach []
   )

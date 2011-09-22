@@ -25,7 +25,7 @@
 
 (defn available-balance
   ([account memos]
-     (reduce + (BigDecimal. (:ledger-balance account)) (map #(BigDecimal. (:amount %1)) memos)))
+     (reduce + (rationalize (:ledger-balance account)) (map #(rationalize (:amount %1)) memos)))
   ([account-id]
      (let [[[account] memos] (account-and-memos account-id)]
        (available-balance account memos))))
@@ -79,7 +79,9 @@
   (str (:name header) " - " (:entry-description header) (description-from-addenda (:addenda detail))))
 
 (defn- process-detail [detail header]
-  (add-memo (:account-number detail) (/ (BigDecimal. (:amount detail) 10.0M) (description-from-ach detail header))))
+  (add-memo (:account-number detail)
+	    (/ (rationalize (:amount detail)) (rationalize 10.0M))
+	    (description-from-ach detail header)))
 
 (defn- process-batch [batch]
   (let [{header :header details :details control :control} batch]
@@ -106,7 +108,11 @@
   (> (client [:count :memos {:where ["=" :account-id account-id]}]) 0))
 
 (defn ledger-balance [account-id]
-  (BigDecimal. (:ledger-balance
+  (rationalize (:ledger-balance
+		(first (client [:select :accounts (for-account account-id)])))))
+
+(defn accrued-interest [account-id]
+  (rationalize (:accrued-interest
 		(first (client [:select :accounts (for-account account-id)])))))
 
 (defn transaction-history [account-id]
@@ -180,15 +186,15 @@
        [[(:ledger-balance account)
 	 (:accrued-interest account)]]
        [:update :accounts
-	{:accrued-interest (+ (BigDecimal. (or (:accrued-interest account) 0))
+	{:accrued-interest (+ (rationalize (or (:accrued-interest account) 0))
 			      (*
-			       (BigDecimal. (or (:daily-interest-rate account) 0))
-			       (BigDecimal. (:ledger-balance account))))}
+			       (rationalize (or (:daily-interest-rate account) 0))
+			       (rationalize (:ledger-balance account))))}
 	(for-account (:id account))]])))
 
 (defn- postable-interest [account]
-  (let [accrued (BigDecimal. (or (:accrued-interest account) 0))
-	remaining (mod accrued 0.01M)]
+  (let [accrued (rationalize (or (:accrued-interest account) 0.0M))
+	remaining (rem accrued (rationalize 0.01M))]
     [(- accrued remaining) remaining]))
 
 (defn post-interest
@@ -211,7 +217,7 @@
      (let [[postable remaining] (postable-interest account)
 	   description (str "Interest " (:id account))]
        (cond
-	(> (.abs postable) 0.0M)
+	(not (= postable 0M))
 	(client
 	 [:checked-write
 	  [:select :accounts {:where ["=" :id (:id account)]
