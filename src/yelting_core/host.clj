@@ -1,5 +1,7 @@
 (ns yelting-core.host
-  (:import (java.io FileWriter FileReader PushbackReader))
+  (:import (java.io File)
+	   (org.apache.commons.codec.binary Base64)
+	   (org.apache.commons.io FileUtils))
   (:use [yelting-achlib.parser]
         [clj-time.core :exclude 'extend]
 	[clj-time.coerce :only (to-string from-string)]
@@ -265,3 +267,20 @@
 	    (add-memo (:id account) postable description)
 	    [:update :accounts {:accrued-interest remaining} (for-account (:id account))]]]])
 	:else [true]))))
+
+;=======================================
+;==============Imaging==================
+;=======================================
+
+(defn- encode-file [path]
+  (Base64/encodeBase64String (FileUtils/readFileToByteArray (File. path))))
+
+(defn image-list [account-id]
+  (client [:select :images {:where ["=" :account-id account-id]}]))
+
+(defn get-image [image-id]
+  (let [[path content-type]
+	(client [:select :images {:where ["=" :id image-id]
+				  :only [:path :content-type]}])]
+    {:content-type content-type
+     :image (encode-file path)}))
